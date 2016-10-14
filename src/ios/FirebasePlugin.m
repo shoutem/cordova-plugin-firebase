@@ -127,7 +127,7 @@ static FirebasePlugin *firebasePlugin;
 }
 
 /// @description Retrieves the alert value from aps.
-- (NSString *)messageForUserInfo:(NSDictionary *)userInfo
+- (NSString *)getMessage:(NSDictionary *)userInfo
 {
     NSString *message = @"";
     
@@ -142,7 +142,7 @@ static FirebasePlugin *firebasePlugin;
 }
 
 /// @description Retrieves all custom properties from the notification payload.
-- (NSMutableDictionary *)extrasForUserInfo:(NSDictionary *)userInfo
+- (NSMutableDictionary *)getExtras:(NSDictionary *)userInfo
 {
     NSMutableDictionary *extras = [NSMutableDictionary dictionaryWithDictionary:userInfo];
     NSArray *keys = [extras allKeys];
@@ -180,21 +180,28 @@ static FirebasePlugin *firebasePlugin;
     }
 }
 
-- (NSDictionary *)raisePushReceived:(NSString *)message withExtras:(NSDictionary *)extras active:(BOOL)active opened:(BOOL)opened
+- (NSDictionary *)createNotificationObject:(NSDictionary *)userInfo
 {
+    NSString *message = [self getMessage:userInfo];
+    NSDictionary *extras = [self getExtras:userInfo];
+
     if (!message) {
         message = @"";
     }
-    
+
     if (!extras) {
         extras = @{};
     }
-    
+
+    UIApplication *app = [UIApplication sharedApplication];
+    BOOL active = app.applicationState == UIApplicationStateActive;
+    BOOL opened = app.applicationState == UIApplicationStateInactive || app.applicationState == UIApplicationStateBackground;
+
     NSDictionary *data = [self notificationWithMessage:message
                                                 extras:extras
                                                 active:active
                                                 opened:opened];
-    
+
     return data;
 }
 
@@ -208,15 +215,7 @@ static FirebasePlugin *firebasePlugin;
 
 - (void)sendNotification:(NSDictionary *)userInfo {
     if (self.notificationCallbackId != nil) {
-        NSString *alert = [self messageForUserInfo:userInfo];
-        NSDictionary *extras = [self extrasForUserInfo:userInfo];
-        
-        UIApplication *app = [UIApplication sharedApplication];
-        BOOL active = app.applicationState == UIApplicationStateActive;
-        BOOL opened = app.applicationState == UIApplicationStateInactive || app.applicationState == UIApplicationStateBackground;
-        
-        NSDictionary *notificationObject = [self raisePushReceived:alert withExtras:extras active:active opened:opened];
-        
+        NSDictionary *notificationObject = [self createNotificationObject:userInfo];
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:notificationObject];
         [pluginResult setKeepCallbackAsBool:YES];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.notificationCallbackId];
