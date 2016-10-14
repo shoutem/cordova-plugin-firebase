@@ -126,6 +126,78 @@ static FirebasePlugin *firebasePlugin;
     }
 }
 
+/// @description Retrieves the alert value from aps.
+- (NSString *)messageForUserInfo:(NSDictionary *)userInfo
+{
+    NSString *message = @"";
+    
+    if ([[userInfo allKeys] containsObject:@"aps"]) {
+        NSDictionary *apsDict = [userInfo objectForKey:@"aps"];
+        if ([[apsDict objectForKey:@"alert"] isKindOfClass:[NSString class]]) {
+            message = [apsDict objectForKey:@"alert"];
+        }
+    }
+    
+    return message;
+}
+
+/// @description Retrieves all custom properties from the notification payload.
+- (NSMutableDictionary *)extrasForUserInfo:(NSDictionary *)userInfo
+{
+    NSMutableDictionary *extras = [NSMutableDictionary dictionaryWithDictionary:userInfo];
+    NSArray *keys = [extras allKeys];
+    
+    if ([keys containsObject:@"aps"]) {
+        [extras removeObjectForKey:@"aps"];
+    }
+    
+    return extras;
+}
+
+/// @description Constructs a payload dictionary from notification user info.
+- (NSDictionary *)notificationWithMessage:(NSString *)message extras:(NSDictionary *)extras active:(BOOL)active opened:(BOOL)opened
+{
+    return @{
+             @"notification": @{
+                     @"message": message,
+                     @"extras": extras
+                     },
+             @"applicationState": @{
+                     @"active": [NSNumber numberWithBool:active],
+                     @"openedFromNotification": [NSNumber numberWithBool:opened]
+                     }
+             };
+}
+
+- (void)onNotificationReceived:(CDVInvokedUrlCommand *)command {
+    self.notificationCallbackId = command.callbackId;
+    
+    if (self.notificationStack != nil && [self.notificationStack count]) {
+        for (NSDictionary *userInfo in self.notificationStack) {
+            [self sendNotification:userInfo];
+        }
+        [self.notificationStack removeAllObjects];
+    }
+}
+
+- (NSDictionary *)raisePushReceived:(NSString *)message withExtras:(NSDictionary *)extras active:(BOOL)active opened:(BOOL)opened
+{
+    if (!message) {
+        message = @"";
+    }
+    
+    if (!extras) {
+        extras = @{};
+    }
+    
+    NSDictionary *data = [self notificationWithMessage:message
+                                                extras:extras
+                                                active:active
+                                                opened:opened];
+    
+    return data;
+}
+
 - (void)onTokenRefreshNotification:(CDVInvokedUrlCommand *)command {
     self.tokenRefreshCallbackId = command.callbackId;
     NSString* currentToken = [[FIRInstanceID instanceID] token];
@@ -136,7 +208,16 @@ static FirebasePlugin *firebasePlugin;
 
 - (void)sendNotification:(NSDictionary *)userInfo {
     if (self.notificationCallbackId != nil) {
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:userInfo];
+        NSString *alert = [self messageForUserInfo:userInfo];
+        NSDictionary *extras = [self extrasForUserInfo:userInfo];
+        
+        UIApplication *app = [UIApplication sharedApplication];
+        BOOL active = app.applicationState == UIApplicationStateActive;
+        BOOL opened = app.applicationState == UIApplicationStateInactive || app.applicationState == UIApplicationStateBackground;
+        
+        NSDictionary *notificationObject = [self raisePushReceived:alert withExtras:extras active:active opened:opened];
+        
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:notificationObject];
         [pluginResult setKeepCallbackAsBool:YES];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.notificationCallbackId];
     } else {
