@@ -6,6 +6,10 @@ exports.onNotificationOpen = function(success, error) {
     success();
 };
 
+exports.onNotificationReceived = function(success, error) {
+    success();
+};
+
 exports.onTokenRefreshNotification = function(success, error) {
     success();
 };
