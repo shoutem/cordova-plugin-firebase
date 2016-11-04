@@ -9,7 +9,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
-import android.text.TextUtils;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
@@ -59,19 +58,8 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
         Log.d(TAG, "Notification Message Title: " + title);
         Log.d(TAG, "Notification Message Body/Text: " + text);
 
-        Boolean isInBackground = true;
-        Context context = getApplicationContext();
-        if (context instanceof StateTrackableApplication) {
-            StateTrackableApplication application = (StateTrackableApplication) getApplicationContext();
-            isInBackground = application.getStateTracker().isInBackground();
-        }
-
-        if (!isInBackground) {
-            sendNotificationToCordova(id, title, text, remoteMessage.getData());
-        } else if (!TextUtils.isEmpty(text) || !TextUtils.isEmpty(title) || !TextUtils.isEmpty(id)) {
-            // TODO: Add option to developer to configure if show notification when app on foreground
-            sendNotification(id, title, text, remoteMessage.getData());
-        }
+        sendNotificationToCordova(id, title, text, remoteMessage.getData());
+        sendNotification(id, title, text, remoteMessage.getData());
     }
 
     private void sendNotificationToCordova(String id, String title, String text, Map<String, String> data) {

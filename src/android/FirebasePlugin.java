@@ -1,7 +1,11 @@
 package org.apache.cordova.firebase;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.util.Base64;
 import android.util.Log;
 import android.os.Bundle;
@@ -15,6 +19,8 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfigInfo;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigValue;
 
+import com.shoutem.cordova.ActivityObserver;
+import com.shoutem.cordova.ObservableActivity;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
 
@@ -38,7 +44,6 @@ public class FirebasePlugin extends CordovaPlugin {
 
     private FirebaseAnalytics mFirebaseAnalytics;
     private final String TAG = "FirebasePlugin";
-    private static final String LAUNCH_NOTIFICATION = "launchNotification";
     protected static final String KEY = "badge";
     protected static Bundle notificationBundle;
 
@@ -53,8 +58,6 @@ public class FirebasePlugin extends CordovaPlugin {
             public void run() {
                 Log.d(TAG, "Starting Firebase plugin");
                 mFirebaseAnalytics = FirebaseAnalytics.getInstance(context);
-                FirebaseMessaging.getInstance().subscribeToTopic("android");
-                FirebaseMessaging.getInstance().subscribeToTopic("all");
             }
         });
     }
@@ -123,21 +126,60 @@ public class FirebasePlugin extends CordovaPlugin {
         return false;
     }
 
+    @SuppressLint("LongLogTag")
     private void registerOnNotificationReceived(CallbackContext callbackContext) {
         NotificationReceivedCallback.getInstance().setCallbackContext(callbackContext);
-        String lastReceivedNotification = cordova.getActivity().getIntent().getStringExtra(LAUNCH_NOTIFICATION);
+        Activity activity = cordova.getActivity();
+        Intent intent = activity.getIntent();
+
+        Bundle bundle = intent.getExtras();
+        Log.d(TAG, " ON_NOTIFICATION_RECEIVED");
+        for (String key : bundle.keySet()) {
+            Object value = bundle.get(key);
+            Log.d(TAG + " ON_NOTIFICATION_RECEIVED", String.format("%s %s (%s)", key,
+                    value.toString(), value.getClass().getName()));
+        }
+
+        JSONObject receivedNotification = getJsonFromBundle(bundle);
 
         // if intent extras contain launch notification info then it has been opened from the notification
         // center and the notification needs to be forwarded to the cordova callback
-        if (lastReceivedNotification != null) {
-            cordova.getActivity().getIntent().removeExtra(LAUNCH_NOTIFICATION);
+        if (receivedNotification != null) {
             try {
-                NotificationReceivedCallback.getInstance().call(new JSONObject(lastReceivedNotification));
+                JSONObject notificationObject = new NotificationObject.Builder()
+                        .withTitle(receivedNotification.getString("title"))
+                        .withText(receivedNotification.getString("text"))
+                        .withNotificationData(receivedNotification)
+                        .withApplicationActive(false)
+                        .withOpenedFromNotification(true)
+                        .build()
+                        .getJSON();
+
+                NotificationReceivedCallback.getInstance().call(notificationObject);
             } catch (JSONException e) {
-                e.printStackTrace();
-                callbackContext.error(e.getMessage());
+                Log.e(TAG, "Unable to parse the received notification as JSON: " + e.getMessage());
             }
         }
+
+        if (activity instanceof ObservableActivity) {
+            ObservableActivity observableActivity = (ObservableActivity) activity;
+            observableActivity.addObserver(new MainActivityNewIntentObserver());
+        }
+    }
+
+    @NonNull
+    private JSONObject getJsonFromBundle(Bundle data) {
+        JSONObject receivedNotification = new JSONObject();
+        Set<String> keys = data.keySet();
+        for (String key : keys) {
+            try {
+                receivedNotification.put(key, data.get(key));
+            } catch (JSONException e) {
+                Log.e(TAG, "Unable to parse the notification bundle as JSON: " + e.getMessage());
+            }
+        }
+
+        return receivedNotification;
     }
 
     private void registerOnNotificationOpen(final CallbackContext callbackContext) {
@@ -443,5 +485,32 @@ public class FirebasePlugin extends CordovaPlugin {
             map.put(key, value);
         }
         return map;
+    }
+
+    private class MainActivityNewIntentObserver implements ActivityObserver {
+        @Override
+        public void notifyObserver(Intent intent) {
+            Bundle bundle = intent.getExtras();
+            JSONObject receivedNotification = getJsonFromBundle(bundle);
+
+            // if intent extras contain launch notification info then it has been opened from the notification
+            // center and the notification needs to be forwarded to the cordova callback
+            if (receivedNotification != null) {
+                try {
+                    JSONObject notificationObject = new NotificationObject.Builder()
+                            .withTitle(receivedNotification.getString("title"))
+                            .withText(receivedNotification.getString("text"))
+                            .withNotificationData(receivedNotification)
+                            .withApplicationActive(false)
+                            .withOpenedFromNotification(true)
+                            .build()
+                            .getJSON();
+
+                    NotificationReceivedCallback.getInstance().call(notificationObject);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Unable to parse the received notification as JSON: " + e.getMessage());
+                }
+            }
+        }
     }
 }
