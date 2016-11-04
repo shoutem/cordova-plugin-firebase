@@ -4,7 +4,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -14,6 +13,8 @@ import android.text.TextUtils;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.Map;
 
@@ -52,16 +53,46 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
             title = remoteMessage.getData().get("title");
             text = remoteMessage.getData().get("text");
             id = remoteMessage.getData().get("id");
-
         }
         Log.d(TAG, "From: " + remoteMessage.getFrom());
         Log.d(TAG, "Notification Message id: " + id);
         Log.d(TAG, "Notification Message Title: " + title);
         Log.d(TAG, "Notification Message Body/Text: " + text);
 
-        // TODO: Add option to developer to configure if show notification when app on foreground
-        if (!TextUtils.isEmpty(text) || !TextUtils.isEmpty(title)) {
+        Boolean isInBackground = true;
+        Context context = getApplicationContext();
+        if (context instanceof StateTrackableApplication) {
+            StateTrackableApplication application = (StateTrackableApplication) getApplicationContext();
+            isInBackground = application.getStateTracker().isInBackground();
+        }
+
+        if (!isInBackground) {
+            sendNotificationToCordova(id, title, text, remoteMessage.getData());
+        } else if (!TextUtils.isEmpty(text) || !TextUtils.isEmpty(title) || !TextUtils.isEmpty(id)) {
+            // TODO: Add option to developer to configure if show notification when app on foreground
             sendNotification(id, title, text, remoteMessage.getData());
+        }
+    }
+
+    private void sendNotificationToCordova(String id, String title, String text, Map<String, String> data) {
+        JSONObject cordovaObject;
+        JSONObject jsonData = new JSONObject(data);
+
+        try {
+            cordovaObject = new NotificationObject.Builder()
+                    .withNotificationData(jsonData)
+                    .withTitle(title)
+                    .withText(text)
+                    .withId(id)
+                    .withApplicationActive(true)
+                    .withOpenedFromNotification(false)
+                    .build()
+                    .getJSON();
+
+            NotificationReceivedCallback.getInstance().call(cordovaObject);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Unable to create a JSON object" + e.getMessage());
         }
     }
 
@@ -90,6 +121,4 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
 
         notificationManager.notify(id.hashCode(), notificationBuilder.build());
     }
-
-
 }

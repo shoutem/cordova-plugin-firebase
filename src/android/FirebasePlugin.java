@@ -1,7 +1,6 @@
 package org.apache.cordova.firebase;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
@@ -39,6 +38,7 @@ public class FirebasePlugin extends CordovaPlugin {
 
     private FirebaseAnalytics mFirebaseAnalytics;
     private final String TAG = "FirebasePlugin";
+    private static final String LAUNCH_NOTIFICATION = "launchNotification";
     protected static final String KEY = "badge";
     protected static Bundle notificationBundle;
 
@@ -79,6 +79,9 @@ public class FirebasePlugin extends CordovaPlugin {
         } else if (action.equals("onNotificationOpen")) {
             this.registerOnNotificationOpen(callbackContext);
             return true;
+        } else if (action.equals("onNotificationReceived")) {
+            this.registerOnNotificationReceived(callbackContext);
+            return true;
         } else if (action.equals("logEvent")) {
             this.logEvent(callbackContext, args.getString(0), args.getJSONObject(1));
             return true;
@@ -118,6 +121,23 @@ public class FirebasePlugin extends CordovaPlugin {
             return true;
         }
         return false;
+    }
+
+    private void registerOnNotificationReceived(CallbackContext callbackContext) {
+        NotificationReceivedCallback.getInstance().setCallbackContext(callbackContext);
+        String lastReceivedNotification = cordova.getActivity().getIntent().getStringExtra(LAUNCH_NOTIFICATION);
+
+        // if intent extras contain launch notification info then it has been opened from the notification
+        // center and the notification needs to be forwarded to the cordova callback
+        if (lastReceivedNotification != null) {
+            cordova.getActivity().getIntent().removeExtra(LAUNCH_NOTIFICATION);
+            try {
+                NotificationReceivedCallback.getInstance().call(new JSONObject(lastReceivedNotification));
+            } catch (JSONException e) {
+                e.printStackTrace();
+                callbackContext.error(e.getMessage());
+            }
+        }
     }
 
     private void registerOnNotificationOpen(final CallbackContext callbackContext) {
