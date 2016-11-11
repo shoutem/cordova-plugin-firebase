@@ -48,7 +48,6 @@ static FirebasePlugin *firebasePlugin;
             (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
             UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTypes:notificationTypes categories:nil];
             [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
-            [[UIApplication sharedApplication] registerForRemoteNotifications];
         } else {
             #pragma GCC diagnostic push
             #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -69,11 +68,11 @@ static FirebasePlugin *firebasePlugin;
         ];
         [[UNUserNotificationCenter currentNotificationCenter] setDelegate:self];
         [[FIRMessaging messaging] setRemoteMessageDelegate:self];
-        [[UIApplication sharedApplication] registerForRemoteNotifications];
-        #endif
         
-        [[UIApplication sharedApplication] registerForRemoteNotifications];
+        #endif
     }
+    
+    [[UIApplication sharedApplication] registerForRemoteNotifications];
 
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
