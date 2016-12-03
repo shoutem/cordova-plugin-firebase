@@ -135,6 +135,8 @@ static FirebasePlugin *firebasePlugin;
         NSDictionary *apsDict = [userInfo objectForKey:@"aps"];
         if ([[apsDict objectForKey:@"alert"] isKindOfClass:[NSString class]]) {
             message = [apsDict objectForKey:@"alert"];
+        } else {
+            message = [userInfo objectForKey:@"body"];
         }
     }
     
