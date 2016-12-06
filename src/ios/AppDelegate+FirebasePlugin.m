@@ -35,20 +35,27 @@
 
 - (BOOL)application:(UIApplication *)application swizzledDidFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [self application:application swizzledDidFinishLaunchingWithOptions:launchOptions];
-    
+
     [FIRApp configure];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(tokenRefreshNotification:)
                                                  name:kFIRInstanceIDTokenRefreshNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(initializeFirebase:)
+                                                 name:UIApplicationDidBecomeActiveNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(disconnectFromFCM:)
+                                                 name:UIApplicationDidEnterBackgroundNotification object:nil];
+    
     return YES;
 }
 
-- (void)applicationDidBecomeActive:(UIApplication *)application {
+- (void)initializeFirebase:(NSNotification *)notification {
     [self connectToFcm];
     self.applicationInBackground = @(NO);
 }
 
-- (void)applicationDidEnterBackground:(UIApplication *)application {
+- (void)disconnectFromFCM:(NSNotification *)notification {
     [[FIRMessaging messaging] disconnect];
     self.applicationInBackground = @(YES);
     NSLog(@"Disconnected from FCM");
@@ -60,7 +67,7 @@
     // should be done.
     NSString *refreshedToken = [[FIRInstanceID instanceID] token];
     NSLog(@"InstanceID token: %@", refreshedToken);
-    
+
     // Connect to FCM since connection may have failed when attempted before having a token.
     [self connectToFcm];
 
@@ -83,12 +90,12 @@
     // If you are receiving a notification message while your app is in the background,
     // this callback will not be fired till the user taps on the notification launching the application.
     NSDictionary *mutableUserInfo = [userInfo mutableCopy];
-    
+
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
-    
+
     // Pring full message.
     NSLog(@"%@", mutableUserInfo);
-    
+
     [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
 }
 
@@ -97,12 +104,12 @@
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
     NSDictionary *mutableUserInfo = [notification.request.content.userInfo mutableCopy];
-    
+
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
-    
+
     // Pring full message.
     NSLog(@"%@", mutableUserInfo);
-    
+
     [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
 }
 
@@ -112,5 +119,10 @@
   NSLog(@"%@", [remoteMessage appData]);
 }
 #endif
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [super dealloc];
+}
 
 @end
