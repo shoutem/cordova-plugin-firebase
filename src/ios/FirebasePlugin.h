@@ -3,6 +3,7 @@
 
 @interface FirebasePlugin : CDVPlugin
 + (FirebasePlugin *) firebasePlugin;
++ (void) setPendingNotification:(NSDictionary *)userInfo;
 - (void)getInstanceId:(CDVInvokedUrlCommand*)command;
 - (void)grantPermission:(CDVInvokedUrlCommand*)command;
 - (void)setBadgeNumber:(CDVInvokedUrlCommand*)command;

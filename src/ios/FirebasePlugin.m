@@ -23,13 +23,28 @@
 static NSInteger const kNotificationStackSize = 10;
 static FirebasePlugin *firebasePlugin;
 
+// store notification if received before application is initialized
+static NSDictionary* pendingNotification = nil;
+
 + (FirebasePlugin *) firebasePlugin {
     return firebasePlugin;
+}
+
++ (void) setPendingNotification:(NSDictionary *) userInfo {
+    pendingNotification = userInfo;
 }
 
 - (void)pluginInitialize {
     NSLog(@"Starting Firebase plugin");
     firebasePlugin = self;
+    
+    // check if a notification was recieved before app was initialized
+    if (pendingNotification != nil)
+    {
+        NSDictionary* notification = pendingNotification;
+        pendingNotification = nil;
+        [FirebasePlugin.firebasePlugin sendNotification:notification];
+    }
 }
 
 - (void)getInstanceId:(CDVInvokedUrlCommand *)command {
@@ -55,22 +70,6 @@ static FirebasePlugin *firebasePlugin;
             [[UIApplication sharedApplication] registerForRemoteNotificationTypes:(UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound)];
             #pragma GCC diagnostic pop
         }
-    } else {
-        #if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-        // IOS 10
-        UNAuthorizationOptions authOptions =
-          UNAuthorizationOptionAlert
-          | UNAuthorizationOptionSound
-          | UNAuthorizationOptionBadge;
-        [[UNUserNotificationCenter currentNotificationCenter]
-          requestAuthorizationWithOptions:authOptions
-          completionHandler:^(BOOL granted, NSError * _Nullable error) {
-          }
-        ];
-        [[UNUserNotificationCenter currentNotificationCenter] setDelegate:self];
-        [[FIRMessaging messaging] setRemoteMessageDelegate:self];
-        [[UIApplication sharedApplication] registerForRemoteNotifications];
-        #endif
     }
 
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];

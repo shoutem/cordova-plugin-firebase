@@ -3,17 +3,6 @@
 #import "Firebase.h"
 #import <objc/runtime.h>
 
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-@import UserNotifications;
-#endif
-
-// Implement UNUserNotificationCenterDelegate to receive display notification via APNS for devices
-// running iOS 10 and above. Implement FIRMessagingDelegate to receive data message via FCM for
-// devices running iOS 10 and above.
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-@interface AppDelegate () <UNUserNotificationCenterDelegate, FIRMessagingDelegate>
-@end
-#endif
 
 #define kApplicationInBackgroundKey @"applicationInBackground"
 
@@ -86,6 +75,7 @@
     }];
 }
 
+// used only by iOS < 10
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo {
     // If you are receiving a notification message while your app is in the background,
     // this callback will not be fired till the user taps on the notification launching the application.
@@ -94,31 +84,18 @@
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
 
     // Pring full message.
-    NSLog(@"%@", mutableUserInfo);
-
-    [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
+    NSLog(@"%@ IVO", mutableUserInfo);
+    
+    // store notification if it was received before app was initialized
+    if (FirebasePlugin.firebasePlugin == nil)
+    {
+        FirebasePlugin.pendingNotification = mutableUserInfo;
+    }
+    else
+    {
+        [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
+    }
 }
-
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-- (void)userNotificationCenter:(UNUserNotificationCenter *)center
-       willPresentNotification:(UNNotification *)notification
-         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
-    NSDictionary *mutableUserInfo = [notification.request.content.userInfo mutableCopy];
-
-    [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
-
-    // Pring full message.
-    NSLog(@"%@", mutableUserInfo);
-
-    [FirebasePlugin.firebasePlugin sendNotification:mutableUserInfo];
-}
-
-// Receive data message on iOS 10 devices.
-- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage {
-  // Print full message
-  NSLog(@"%@", [remoteMessage appData]);
-}
-#endif
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
