@@ -84,7 +84,7 @@
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
 
     // Pring full message.
-    NSLog(@"%@ IVO", mutableUserInfo);
+    NSLog(@"%@", mutableUserInfo);
     
     // store notification if it was received before app was initialized
     if (FirebasePlugin.firebasePlugin == nil)
