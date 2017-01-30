@@ -79,6 +79,13 @@
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo {
     // If you are receiving a notification message while your app is in the background,
     // this callback will not be fired till the user taps on the notification launching the application.
+    
+    if( SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO( @"10.0" ) )
+    {
+        NSLog(@"iOS version >= 10. Let NotificationCenter handle this one.");
+        return;  
+    }
+    
     NSDictionary *mutableUserInfo = [userInfo mutableCopy];
 
     [mutableUserInfo setValue:self.applicationInBackground forKey:@"tap"];
