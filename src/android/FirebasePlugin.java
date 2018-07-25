@@ -120,6 +120,9 @@ public class FirebasePlugin extends CordovaPlugin {
         } else if (action.equals("onNotificationOpen")) {
             this.onNotificationOpen(callbackContext);
             return true;
+        } else if (action.equals("onNotificationReceived")) {
+            this.registerOnNotificationReceived(callbackContext);
+            return true;
         } else if (action.equals("onTokenRefresh")) {
             this.onTokenRefresh(callbackContext);
             return true;
@@ -196,6 +199,10 @@ public class FirebasePlugin extends CordovaPlugin {
         }
 
         return false;
+    }
+
+    private void registerOnNotificationReceived(CallbackContext callbackContext) {
+        NotificationReceivedCallback.getInstance().setCallbackContext(callbackContext);
     }
 
     @Override

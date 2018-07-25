@@ -20,6 +20,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Map;
 import java.util.Random;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class FirebasePluginMessagingService extends FirebaseMessagingService {
 
@@ -106,10 +108,34 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
         // TODO: Add option to developer to configure if show notification when app on foreground
         if (!TextUtils.isEmpty(text) || !TextUtils.isEmpty(title) || (!data.isEmpty())) {
             boolean showNotification = (FirebasePlugin.inBackground() || !FirebasePlugin.hasNotificationsCallback()) && (!TextUtils.isEmpty(text) || !TextUtils.isEmpty(title));
+            sendNotificationToCordova(id, title, text, remoteMessage.getData());
             sendNotification(id, title, text, data, showNotification, sound, lights);
         }
 
     }
+
+    private void sendNotificationToCordova(String id, String title, String text, Map<String, String> data) {
+        JSONObject cordovaObject;
+        JSONObject jsonData = new JSONObject(data);
+
+        try {
+            cordovaObject = new NotificationObject.Builder()
+                    .withNotificationData(jsonData)
+                    .withTitle(title)
+                    .withText(text)
+                    .withId(id)
+                    .withApplicationActive(true)
+                    .withOpenedFromNotification(false)
+                    .build()
+                    .getJSON();
+
+            NotificationReceivedCallback.getInstance().call(cordovaObject);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            Log.e(TAG, "Unable to create a JSON object" + e.getMessage());
+        }
+    }
+
 
     private void sendNotification(String id, String title, String messageBody, Map<String, String> data, boolean showNotification, String sound, String lights) {
         Bundle bundle = new Bundle();
@@ -170,7 +196,7 @@ public class FirebasePluginMessagingService extends FirebaseMessagingService {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 int accentID = getResources().getIdentifier("accent", "color", getPackageName());
                 notificationBuilder.setColor(getResources().getColor(accentID, null));
-                
+
             }
 
             Notification notification = notificationBuilder.build();
