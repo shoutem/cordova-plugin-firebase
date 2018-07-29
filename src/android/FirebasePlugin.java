@@ -269,7 +269,7 @@ public class FirebasePlugin extends CordovaPlugin {
 
             /* start the main activity, if not running */
             Intent intent = new Intent("android.intent.action.MAIN");
-            intent.setComponent(new ComponentName(packageName, packageName + ".MainActivity"));
+            intent.setComponent(new ComponentName(packageName, "com.shoutem.app" + ".MainActivity"));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             intent.putExtra("cdvStartInBackground", true);
 
